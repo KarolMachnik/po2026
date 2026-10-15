@@ -20,7 +20,7 @@ public class zad3 {
             wylosowaneLiczby.clear();
 
             while (wylosowaneLiczby.size() < 6) {
-                int liczba = random.nextInt(49) + 1;
+                int liczba = random.nextInt(48) + 1;
                 if (!wylosowaneLiczby.contains(liczba)) {
                     wylosowaneLiczby.add(liczba);
                 }

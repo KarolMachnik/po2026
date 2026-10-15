@@ -9,7 +9,7 @@ public class zad1 {
 
         Random random = new Random();
             while (wylosowaneLiczby.size() < 6) {
-                int liczba = random.nextInt(49) + 1;
+                int liczba = random.nextInt(48) + 1;
                 if (!wylosowaneLiczby.contains(liczba)) {
                     wylosowaneLiczby.add(liczba);
                 }
