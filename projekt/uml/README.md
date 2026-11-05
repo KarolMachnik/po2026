@@ -1,14 +1,18 @@
-# Diagramy UML projektu
+# Diagramy UML projektu DisKrak
 
-Tu trafiają diagramy projektowe jako pliki PlantUML (`.puml`) — tekstowo, bez eksportowania do PNG/SVG.
+Diagramy są zapisane w PlantUML (`.puml`).
 
-Zobacz sekcję **Projekt** w głównym [README](../../README.md) repozytorium — tam jest pełny opis konwencji, narzędzi i rekomendowanej kolejności diagramów.
+| Plik | Opis |
+| --- | --- |
+| `01-przypadki-uzycia.puml` | Przypadki użycia dyspozytora, asystenta i zegara symulacji |
+| `02-sekwencja-podglad-trasy.puml` | Podgląd trasy linii (`Route.generatePreviewDTO`) |
+| `02-sekwencja-budowa-przystanku.puml` | Budowa przystanku na odcinku (`CityGraph.buildCustomStopOnSegment`) |
+| `02-sekwencja-linia-zastepcza.puml` | Zatwierdzenie rekomendacji i utworzenie linii zastępczej 704 (`RouteBuilder`) |
+| `02-sekwencja-tick-symulacji.puml` | Pojedynczy krok symulacji z tachografem i przychodem z biletów |
+| `02-sekwencja-zapis-gry.puml` | Zapis i wczytanie gry (Memento) |
+| `03-diagram-klas.puml` | Klasy wszystkich pakietów backendu i relacje między nimi |
+| `04-diagram-obiektow.puml` | Stan obiektów podczas wybrzuszenia szyny przy Teatrze Bagatela |
+| `05-architektura.puml` | Komponenty frontendu, backendu i bazy danych |
 
-Przykładowe nazewnictwo:
-
-```
-01-przypadki-uzycia.puml
-02-sekwencja-<nazwa-przypadku-uzycia>.puml
-03-diagram-klas.puml
-04-diagram-obiektow.puml   (opcjonalnie)
-```
+Pakiety `network` i `persistence` na diagramie klas odpowiadają zaimplementowanemu kodowi (Epic 1 i 2).
+Pozostałe pakiety opisują docelowy projekt z epików 3-10.

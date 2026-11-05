@@ -1,0 +1,69 @@
+@startuml
+skinparam componentStyle rectangle
+
+actor "Dyspozytor MPK" as Dyspozytor
+
+node "frontend (Next.js + HeroUI)" {
+    [TopDispatcherHud]
+    [KrakowMapCanvas]
+    [NetworkCreatorTab]
+    [AiAssistantTab]
+    [DriversRosterTab]
+    [AnalyticsBarsModal]
+    [SaveLoadModal]
+    [stompClient]
+}
+
+node "backend (Spring Boot 3, Java 21)" {
+    package "REST / WebSocket" {
+        [SimulationController]
+        [NetworkController]
+        [AssistantController]
+        [SaveLoadController]
+        [AnalyticsController]
+        [TelemetryBroadcaster]
+    }
+
+    package "Model" {
+        [network]
+        [fleet]
+        [staff]
+        [incidents]
+        [gamification]
+        [assistant]
+        [simulation]
+    }
+
+    package "persistence" {
+        [CityNetworkLoader]
+        [Repozytoria JPA]
+        [SaveGameManager]
+        [AnalyticsCollector]
+    }
+}
+
+database "PostgreSQL 16\n(Flyway V1-V5)" as DB
+
+Dyspozytor --> [TopDispatcherHud]
+[KrakowMapCanvas] --> [SimulationController] : GET /api/network/topology
+[NetworkCreatorTab] --> [NetworkController] : /api/network/...
+[AiAssistantTab] --> [AssistantController] : /api/assistant/...
+[SaveLoadModal] --> [SaveLoadController] : /api/saves
+[AnalyticsBarsModal] --> [AnalyticsController] : GET /api/analytics/bars
+[stompClient] <-- [TelemetryBroadcaster] : /topic/telemetry
+
+[SimulationController] --> [simulation]
+[NetworkController] --> [network]
+[AssistantController] --> [assistant]
+[assistant] --> [simulation]
+[simulation] --> [network]
+[simulation] --> [fleet]
+[simulation] --> [staff]
+[simulation] --> [incidents]
+[simulation] --> [gamification]
+[simulation] --> [CityNetworkLoader]
+[CityNetworkLoader] --> [Repozytoria JPA]
+[SaveGameManager] --> [Repozytoria JPA]
+[Repozytoria JPA] --> DB
+
+@enduml

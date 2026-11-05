@@ -1,0 +1,60 @@
+@startuml
+skinparam responseMessageBelowArrow true
+
+actor "Dyspozytor MPK" as Dyspozytor
+participant ":AiAssistantTab" as Tab
+participant ":AssistantController" as Controller
+participant ":IntelligentAssistantService" as Service
+participant "karta:DispatchRecommendation" as Rec
+participant "cmd:CreateTempLineCommand" as Cmd
+participant "builder:RouteBuilder" as Builder
+participant ":CityGraph" as Graph
+participant "zajezdnia:Depot" as Depot
+participant ":DispatcherRatingService" as Rating
+
+Dyspozytor -> Tab : Zatwierdź plan
+activate Tab
+Tab -> Controller : POST /api/assistant/recommendations/{id}/approve
+activate Controller
+Controller -> Service : approve(id)
+activate Service
+Service -> Rec : getCommands()
+Service -> Cmd : execute(world)
+activate Cmd
+
+create Builder
+Cmd -> Builder : new RouteBuilder(cityGraph)
+Cmd -> Builder : withLineNumber("704").withType(TEMPORARY_REPLACEMENT)
+Cmd -> Builder : addStop(...).withFrequency(6)
+Cmd -> Builder : build(autobus::canTraverse)
+activate Builder
+loop dla każdej pary kolejnych przystanków
+    Builder -> Graph : findShortestPath(a, b, autobus::canTraverse)
+    activate Graph
+    Graph --> Builder : List<TrackSegment>
+    deactivate Graph
+    alt brak ścieżki
+        Builder --> Cmd : IllegalStateException("Brak przejezdnego połączenia w sieci!")
+    end
+end
+Builder --> Cmd : linia704:Route
+deactivate Builder
+
+Cmd -> Depot : releaseVehicle(autobus1)
+Cmd -> Depot : releaseVehicle(autobus2)
+Cmd --> Service
+deactivate Cmd
+
+Service -> Rating : onEvent(TEMP_LINE_LAUNCHED)
+activate Rating
+Rating --> Service
+deactivate Rating
+Service -> Service : executedHistory.push(karta)
+Service --> Controller : status APPROVED
+deactivate Service
+Controller --> Tab : karta zatwierdzona
+deactivate Controller
+Tab --> Dyspozytor : linia 704 na mapie, przycisk Cofnij
+deactivate Tab
+
+@enduml

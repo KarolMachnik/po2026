@@ -1,0 +1,111 @@
+@startuml
+
+object "bagatela : StopNode" as bagatela {
+    name = "Teatr Bagatela"
+    coordinates = (50.063454, 19.933007)
+    waitingPassengers = 350
+    isTerminalLoop = false
+}
+
+object "staryKleparz : StopNode" as kleparz {
+    name = "Stary Kleparz"
+    waitingPassengers = 42
+}
+
+object "odcinek : TrackSegment" as segment {
+    type = TRAM_TRACK
+    lengthKm = 0.55
+    baseSpeedLimitKmh = 30.0
+    currentCongestionFactor = 2.2
+    isBlocked = true
+    hasPowerSupply = true
+}
+
+object "zajezdnia : Depot" as depot {
+    name = "Zajezdnia Podgórze (Brożka)"
+    maxFleetCapacity = 85
+}
+
+object "linia18 : Route" as line18 {
+    lineNumber = "18"
+    routeType = PERMANENT_TRAM
+    frequencyMinutes = 9
+    isTemporary = false
+}
+
+object "linia704 : Route" as line704 {
+    lineNumber = "704"
+    routeType = TEMPORARY_REPLACEMENT
+    frequencyMinutes = 6
+    isTemporary = true
+}
+
+object "podglad704 : RoutePreviewDTO" as preview {
+    totalDistanceKm = 3.82
+    estimatedTravelMinutes = 16.0
+    bottleneckStopNames = []
+}
+
+object "lajkonik : Tram" as tram {
+    sideNumber = "RG901"
+    modelName = "Stadler Tango Lajkonik II"
+    currentPassengers = 145
+    hasAutonomousBatteryPack = true
+    batteryRangeRemainingKm = 3.0
+}
+
+object "stan : BrokenDownState" as state
+
+object "motorniczy : Driver" as driver {
+    employeeCode = "MPK-1042"
+    firstName = "Marek"
+    lastName = "Nowak"
+    fatigueLevel = 82
+    currentState = ON_DUTY_DRIVING
+}
+
+object "tachograf : ShiftTimeTracker" as tacho {
+    continuousDrivingMinutes = 262
+    totalShiftMinutesToday = 470
+}
+
+object "cecha : CalmVeteranTrait" as trait
+
+object "szyna : ModularIncident" as incident {
+    title = "Wybrzuszenie szyny na ul. Basztowej (34°C)"
+    severity = CRITICAL
+    remainingDurationTicks = 120
+    active = true
+}
+
+object "blokada : TrackBlockageEffect" as blockage
+object "tlum : PassengerSurgeEffect" as surge {
+    extraPassengers = 350
+}
+
+object "karta : DispatchRecommendation" as rec {
+    title = "Linia zastępcza 704 za tramwaj 18"
+    confidenceScore = 0.94
+    status = PENDING
+}
+
+object "cmd : CreateTempLineCommand" as cmd
+
+segment --> bagatela : fromNode
+segment --> kleparz : toNode
+line18 o-- segment
+line704 ..> preview
+tram --> line18 : assignedRouteId
+tram o-- state
+tram --> driver : assignedDriverId
+driver *-- tacho
+driver o-- trait
+incident *-- blockage
+incident *-- surge
+blockage --> segment
+surge --> bagatela
+rec *-- cmd
+cmd ..> line704 : tworzy
+cmd ..> depot : releaseVehicle
+
+@enduml
