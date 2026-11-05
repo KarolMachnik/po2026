@@ -1,5 +1,7 @@
 package agh.po.lab3;
 
+import java.util.Map;
+
 public class CodingBat {
 
     /*
@@ -109,6 +111,47 @@ public class CodingBat {
         }
         
         return "";
+    }
+
+    /*
+    Map-1 > mapAB (https://codingbat.com/prob/p107259):
+
+    Modify and return the given map as follows: for this problem the map may or may not contain the "a" and "b" keys. If both keys are present, append their 2 string values together and store the result under the key "ab".
+
+    Input + output z codingbat:
+    mapAB({"a": "Hi", "b": "There"}) → {"a": "Hi", "ab": "HiThere", "b": "There"}
+    mapAB({"a": "Hi"}) → {"a": "Hi"}
+    mapAB({"b": "There"}) → {"b": "There"}
+
+    */
+
+    public Map<String, String> mapAB(Map<String, String> map) {
+        if (map.containsKey("a") && map.containsKey("b")) {
+            String aValue = map.get("a");
+            String bValue = map.get("b");
+            map.put("ab", aValue + bValue);
+        }
+        return map;
+    }
+
+    /*
+    Map-2 > wordLen (https://codingbat.com/prob/p125327):
+
+    Given an array of strings, return a Map<String, Integer> containing a key for every different string in the array, and the value is that string's length.
+
+    Input + output z codingbat:
+    wordLen(["a", "bb", "a", "bb"]) → {"bb": 2, "a": 1}
+    wordLen(["this", "and", "that", "and"]) → {"that": 4, "and": 3, "this": 4}
+    wordLen(["code", "code", "code", "bug"]) → {"code": 4, "bug": 3}
+
+    */
+
+    public Map<String, Integer> wordLen(String[] strings) {
+        Map<String, Integer> result = new java.util.HashMap<>();
+        for (String str : strings) {
+            result.put(str, str.length());
+        }
+        return result;
     }
 
 }
