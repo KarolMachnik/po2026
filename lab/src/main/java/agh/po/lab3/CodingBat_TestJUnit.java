@@ -4,6 +4,9 @@ import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class CodingBat_TestJUnit {
 
     private CodingBat cb;
@@ -40,4 +43,19 @@ public class CodingBat_TestJUnit {
         assertEquals("hip", cb.startWord("hippo", "xip"));
         assertEquals("h", cb.startWord("hippo", "i"));
     }
+
+    @Test
+    public void mapAB() {
+        assertEquals(Map.of("a", "Hi", "b", "There", "ab", "HiThere"), cb.mapAB(new HashMap<>(Map.of("a", "Hi", "b", "There"))));
+        assertEquals(Map.of("a", "Hi"), cb.mapAB(new HashMap<>(Map.of("a", "Hi"))));
+        assertEquals(Map.of("b", "There"), cb.mapAB(new HashMap<>(Map.of("b", "There"))));
+    }
+
+    @Test
+    public void wordLen() {
+        assertEquals(Map.of("a", 1, "bb", 2), cb.wordLen(new String[]{"a", "bb", "a", "bb"}));
+        assertEquals(Map.of("this", 4, "and", 3, "that", 4), cb.wordLen(new String[]{"this", "and", "that", "and"}));
+        assertEquals(Map.of("code", 4, "bug", 3), cb.wordLen(new String[]{"code", "code", "code", "bug"}));
+    }
+
 }
