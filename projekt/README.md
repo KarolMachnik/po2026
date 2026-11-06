@@ -92,5 +92,6 @@ cd backend
 | 8 | Inteligentny asystent | Karol Machnik | do zrobienia |
 | 9 | Save/Load i analityka słupkowa | Karol Machnik | do zrobienia |
 | 10 | Frontend Next.js i HeroUI | Karol Machnik | do zrobienia |
+| 11 | Prezentacja projektu | Hubert Śliwa | do zrobienia |
 
 Szczegóły każdego epiku: [EPIKI.md](EPIKI.md). Diagramy: [uml/](uml/README.md).
