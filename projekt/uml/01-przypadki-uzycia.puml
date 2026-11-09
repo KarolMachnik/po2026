@@ -1,38 +1,84 @@
 @startuml
 left to right direction
+skinparam packageStyle rectangle
 
-' TODO: zastąpcie "Użytkownik" właściwą nazwą aktora (np. Klient, Pracownik,
-' Administrator...) i dodajcie kolejnych aktorów, jeśli ich macie więcej.
-actor "Użytkownik" as User
+actor "Dyspozytor MPK" as Dyspozytor
+actor "Asystent AI" as Asystent
+actor "Zegar symulacji" as Zegar
 
-package "Nazwa waszej aplikacji" {
+rectangle "DisKrak - symulator dyspozytorni MPK Kraków" {
 
-    ' TODO: to są tylko przykładowe, generyczne przypadki użycia.
-    ' Zastąpcie je / dopiszcie własne, dopasowane do waszego tematu projektu.
-    usecase "Zaloguj się" as UC_Login
-    usecase "Przeglądaj dane" as UC_Browse
-    usecase "Dodaj nowy element" as UC_Add
-    usecase "Edytuj istniejący element" as UC_Edit
-    usecase "Usuń element" as UC_Delete
+    package "Sieć komunikacyjna" {
+        usecase "Podejrzyj trasę linii" as UC_Preview
+        usecase "Zbuduj przystanek na odcinku" as UC_BuildStop
+        usecase "Utwórz linię" as UC_CreateRoute
+        usecase "Utwórz linię zastępczą" as UC_CreateTempRoute
+        usecase "Wyznacz przejezdną trasę" as UC_FindPath
+    }
 
-    User --> UC_Login
-    User --> UC_Browse
-    User --> UC_Add
-    User --> UC_Edit
-    User --> UC_Delete
+    package "Tabor i budżet" {
+        usecase "Kup pojazd w sklepie taborowym" as UC_BuyVehicle
+        usecase "Sprawdź stan budżetu" as UC_Budget
+    }
 
-    ' Przykład relacji <<include>> — UC_Add zawsze wymaga bycia zalogowanym.
-    UC_Add .> UC_Login : <<include>>
-    UC_Edit .> UC_Login : <<include>>
-    UC_Delete .> UC_Login : <<include>>
+    package "Kadry" {
+        usecase "Zrekrutuj kierowcę" as UC_Recruit
+        usecase "Przeglądaj kartę kierowcy MPK" as UC_DriverCard
+        usecase "Rozlicz tachograf" as UC_Tachograph
+    }
+
+    package "Symulacja" {
+        usecase "Zmień prędkość symulacji" as UC_Speed
+        usecase "Wykonaj krok symulacji" as UC_Tick
+        usecase "Obserwuj mapę na żywo" as UC_LiveMap
+    }
+
+    package "Wypadki i asystent" {
+        usecase "Wywołaj scenariusz krakowski" as UC_Scenario
+        usecase "Wygeneruj rekomendację" as UC_GenRec
+        usecase "Zatwierdź rekomendację" as UC_Approve
+        usecase "Odrzuć rekomendację" as UC_Reject
+        usecase "Cofnij decyzję" as UC_Undo
+    }
+
+    package "Ocena i analityka" {
+        usecase "Przeglądaj nastroje dzielnic" as UC_Districts
+        usecase "Czytaj Spotted: MPK Kraków" as UC_Spotted
+        usecase "Przeglądaj wykresy słupkowe" as UC_Bars
+        usecase "Zapisz grę" as UC_Save
+        usecase "Wczytaj grę" as UC_Load
+    }
 }
 
-' Wskazówki:
-' - left to right direction układa aktorów po lewej, przypadki po prawej
-'   (czytelniejsze przy więcej niż 1 aktorze).
-' - <<include>> = przypadek ZAWSZE wywołuje inny jako swoją część.
-' - <<extend>> = przypadek OPCJONALNIE rozszerza inny, tylko w pewnych warunkach.
-' - Grupujcie powiązane przypadki użycia w podpakiety (package "Nazwa grupy" { ... }),
-'   jeśli macie ich więcej niż 5-6 — tak jak w materiale z zajęć (system biblioteczny).
+Dyspozytor --> UC_Preview
+Dyspozytor --> UC_BuildStop
+Dyspozytor --> UC_CreateRoute
+Dyspozytor --> UC_BuyVehicle
+Dyspozytor --> UC_Budget
+Dyspozytor --> UC_Recruit
+Dyspozytor --> UC_DriverCard
+Dyspozytor --> UC_Speed
+Dyspozytor --> UC_LiveMap
+Dyspozytor --> UC_Scenario
+Dyspozytor --> UC_Approve
+Dyspozytor --> UC_Reject
+Dyspozytor --> UC_Undo
+Dyspozytor --> UC_Districts
+Dyspozytor --> UC_Spotted
+Dyspozytor --> UC_Bars
+Dyspozytor --> UC_Save
+Dyspozytor --> UC_Load
+
+Asystent --> UC_GenRec
+Zegar --> UC_Tick
+
+UC_CreateRoute .> UC_FindPath : <<include>>
+UC_CreateTempRoute .> UC_CreateRoute : <<extend>>
+UC_BuildStop .> UC_Budget : <<include>>
+UC_BuyVehicle .> UC_Budget : <<include>>
+UC_Tick .> UC_Tachograph : <<include>>
+UC_Scenario .> UC_GenRec : <<include>>
+UC_Approve .> UC_CreateTempRoute : <<extend>>
+UC_Undo .> UC_Approve : <<extend>>
 
 @enduml

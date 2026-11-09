@@ -1,0 +1,494 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+
+package "network" {
+    class Coordinates <<record>> {
+        + lat: double
+        + lng: double
+        + distanceToKm(other: Coordinates): double
+        + interpolate(target: Coordinates, ratio: double): Coordinates
+    }
+
+    enum SegmentType {
+        TRAM_TRACK
+        BUS_LANE
+        MIXED_ROAD
+    }
+
+    enum RouteType {
+        PERMANENT_TRAM
+        PERMANENT_BUS
+        TEMPORARY_REPLACEMENT
+    }
+
+    class StopNode {
+        - id: UUID
+        - name: String
+        - districtId: UUID
+        - coordinates: Coordinates
+        - waitingPassengers: int
+        - isTerminalLoop: boolean
+        - hasPantographCharger: boolean
+        - isCustomBuilt: boolean
+        - constructionCost: BigDecimal
+        + addPassengers(count: int): void
+        + boardPassengers(availableSeats: int): int
+    }
+
+    class Depot {
+        - maxFleetCapacity: int
+        - parkedVehicleIds: List<UUID>
+        + canAcceptVehicle(): boolean
+        + parkVehicle(vehicleId: UUID): void
+        + releaseVehicle(vehicleId: UUID): void
+    }
+
+    class TrackSegment {
+        - id: UUID
+        - fromNode: StopNode
+        - toNode: StopNode
+        - type: SegmentType
+        - lengthKm: double
+        - baseSpeedLimitKmh: double
+        - currentCongestionFactor: double
+        - isBlocked: boolean
+        - hasPowerSupply: boolean
+        + getEffectiveSpeedKmh(): double
+        + getEstimatedTravelMinutes(): double
+        + isHasPowerSupply(): boolean
+        + setHasPowerSupply(value: boolean): void
+        + setBlocked(value: boolean): void
+        + setCurrentCongestionFactor(value: double): void
+    }
+
+    class CityGraph {
+        + {static} STOP_CONSTRUCTION_COST: BigDecimal
+        + {static} STOP_WITH_CHARGER_CONSTRUCTION_COST: BigDecimal
+        - nodes: Map<UUID, StopNode>
+        - segments: List<TrackSegment>
+        + {static} of(nodes, segments): CityGraph
+        + addNode(node: StopNode): void
+        + addSegment(segment: TrackSegment): void
+        + removeSegment(segment: TrackSegment): boolean
+        + findSegment(id: UUID): Optional<TrackSegment>
+        + getOutgoingSegments(node: StopNode): List<TrackSegment>
+        + findShortestPath(start: StopNode, end: StopNode, canTraverse: Predicate<TrackSegment>): List<TrackSegment>
+        + buildCustomStopOnSegment(name: String, coords: Coordinates, segmentId: UUID, terminalLoop: boolean, charger: boolean): StopNode
+    }
+
+    class Route {
+        + {static} BOTTLENECK_CONGESTION_THRESHOLD: double
+        - id: UUID
+        - lineNumber: String
+        - routeType: RouteType
+        - orderedStops: List<StopNode>
+        - pathSegments: List<TrackSegment>
+        - frequencyMinutes: int
+        - isTemporary: boolean
+        + generatePreviewDTO(): RoutePreviewDTO
+    }
+
+    class RouteBuilder <<Builder>> {
+        - cityGraph: CityGraph
+        - stops: List<StopNode>
+        + withId(id: UUID): RouteBuilder
+        + withLineNumber(lineNumber: String): RouteBuilder
+        + withType(type: RouteType): RouteBuilder
+        + addStop(stop: StopNode): RouteBuilder
+        + withFrequency(minutes: int): RouteBuilder
+        + build(canTraverse: Predicate<TrackSegment>): Route
+    }
+
+    class RoutePreviewDTO <<record>> {
+        + routeId: UUID
+        + lineNumber: String
+        + routeType: RouteType
+        + totalDistanceKm: double
+        + estimatedTravelMinutes: double
+        + polyline: List<Coordinates>
+        + stopNames: List<String>
+        + bottleneckStopNames: List<String>
+    }
+}
+
+package "persistence" {
+    class CityNetworkLoader {
+        + loadGraph(): CityGraph
+        + loadRoutes(graph: CityGraph): List<Route>
+    }
+
+    class DistrictEntity <<Entity>>
+    class StopNodeEntity <<Entity>>
+    class TrackSegmentEntity <<Entity>>
+    class VehicleModelEntity <<Entity>>
+    class RouteEntity <<Entity>>
+
+    interface StopNodeRepository <<JpaRepository>>
+    interface TrackSegmentRepository <<JpaRepository>>
+    interface RouteRepository <<JpaRepository>>
+    interface DistrictRepository <<JpaRepository>>
+    interface VehicleModelRepository <<JpaRepository>>
+
+    class SimulationWorldMemento <<Memento>>
+    class SaveGameManager
+    class AnalyticsCollector {
+        + buildBarsReport(): AnalyticsBarsReportDTO
+    }
+}
+
+package "fleet" {
+    interface EnergyConsumer {
+        + calculateEnergyConsumption(distanceKm: double, congestionFactor: double): double
+        + getEnergyLevelPercent(): double
+    }
+
+    abstract class Vehicle {
+        # id: UUID
+        # sideNumber: String
+        # modelName: String
+        # maxCapacity: int
+        # currentPassengers: int
+        # purchasePrice: BigDecimal
+        # costPerKm: BigDecimal
+        # ecoScore: double
+        # currentPosition: Coordinates
+        # currentState: VehicleState
+        # assignedRouteId: UUID
+        # assignedDriverId: UUID
+        + {abstract} canTraverse(segment: TrackSegment): boolean
+        + {abstract} consumeEnergyOrFuel(distanceKm: double, congestionFactor: double): void
+        + changeState(newState: VehicleState): void
+        + boardPassengers(waitingAtStop: int): int
+        + alightPassengers(fraction: double): void
+    }
+
+    class Tram {
+        - hasAutonomousBatteryPack: boolean
+        - batteryRangeRemainingKm: double
+    }
+
+    class ElectricBus {
+        - batteryCapacityKwh: double
+        - currentChargePercent: double
+        + chargeAtPantograph(seconds: int): void
+    }
+
+    class DieselBus {
+        - fuelLevelLiters: double
+        - euroStandard: String
+    }
+
+    interface VehicleState <<State>> {
+        + getStateName(): String
+        + getBadgeColorHex(): String
+        + canMoveInTick(): boolean
+        + isAvailableInDepot(): boolean
+    }
+
+    class InDepotReserveState
+    class InTransitState
+    class DelayedState
+    class ChargingState
+    class BrokenDownState
+
+    class BudgetManager {
+        - currentBalance: BigDecimal
+        + canAfford(amount: BigDecimal): boolean
+        + addRevenue(amount: BigDecimal, title: String): void
+        + spend(amount: BigDecimal, reason: String): void
+    }
+
+    class VehicleFactory <<Factory Method>> {
+        - counter: int
+        + purchaseAndCreateVehicle(modelCode: String, targetDepot: Depot, budget: BudgetManager): Vehicle
+    }
+}
+
+package "staff" {
+    enum LicenseType {
+        TRAM
+        BUS
+        ARTICULATED_BUS
+    }
+
+    enum DriverState {
+        RESTING
+        ON_DUTY_DRIVING
+        ON_MANDATORY_BREAK
+        OVERTIME
+        REFUSED_TO_WORK
+    }
+
+    class ShiftTimeTracker {
+        - continuousDrivingMinutes: int
+        - totalShiftMinutesToday: int
+        - mandatoryBreakRemainingMinutes: int
+        + recordDriving(minutes: int): void
+        + recordBreak(minutes: int): void
+        + requiresImmediateBreak(): boolean
+        + isApproachingLimit(): boolean
+        + isInOvertime(): boolean
+        + isHardLimitExceeded(): boolean
+    }
+
+    interface DriverTrait <<Strategy>> {
+        + getTraitName(): String
+        + getTraitDescription(): String
+        + getEnergyConsumptionMultiplier(): double
+        + getSpeedMultiplier(): double
+        + getStressGainMultiplier(): double
+        + allowsOvertimeWork(): boolean
+    }
+
+    class EcoDriverTrait
+    class SpeedsterTrait
+    class CalmVeteranTrait
+    class StrictUnionistTrait
+
+    class Driver {
+        - id: UUID
+        - employeeCode: String
+        - firstName: String
+        - lastName: String
+        - age: int
+        - hourlyWagePln: BigDecimal
+        - licenses: Set<LicenseType>
+        - fatigueLevel: int
+        - stressLevel: int
+        - currentState: DriverState
+        - assignedVehicleId: UUID
+        + updateWorkTick(simulatedMinutes: int): void
+        + canContinueDriving(): boolean
+        + toDriverCardDTO(): DriverCardDTO
+    }
+
+    class DriverGenerator {
+        + generateRandomDriver(): Driver
+    }
+}
+
+package "simulation" {
+    enum SimulationSpeed {
+        PAUSED
+        NORMAL_1X
+        FAST_5X
+        ULTRA_15X
+    }
+
+    class SimulationWorldState {
+        - cityGraph: CityGraph
+        - vehicles: Map<UUID, Vehicle>
+        - drivers: Map<UUID, Driver>
+        - routes: Map<UUID, Route>
+        - budgetManager: BudgetManager
+        - simulatedClock: LocalTime
+        - currentSpeed: SimulationSpeed
+        + advanceClockSeconds(seconds: int): void
+        + createMemento(saveName: String): SimulationWorldMemento
+        + restoreFromMemento(memento: SimulationWorldMemento): void
+    }
+
+    class SimulationTickEngine {
+        + executeTick(): void
+    }
+
+    class TelemetryBroadcaster {
+        + broadcastTickState(world: SimulationWorldState): void
+    }
+}
+
+package "incidents" {
+    enum IncidentSeverity {
+        LOW
+        MEDIUM
+        HIGH
+        CRITICAL
+    }
+
+    interface IncidentEffect {
+        + applyEffect(graph: CityGraph): void
+        + revertEffect(graph: CityGraph): void
+        + getEffectDescription(): String
+    }
+
+    class TrackBlockageEffect
+    class PowerGridFailureEffect
+    class CongestionSpikeEffect
+    class PassengerSurgeEffect
+    class VehicleBreakdownEffect
+
+    class ModularIncident <<Composite>> {
+        - id: UUID
+        - title: String
+        - severity: IncidentSeverity
+        - remainingDurationTicks: int
+        - active: boolean
+        - effects: List<IncidentEffect>
+        + addEffect(effect: IncidentEffect): void
+        + activate(graph: CityGraph): void
+        + tick(graph: CityGraph): void
+        + resolve(graph: CityGraph): void
+    }
+
+    class ScenarioGenerator {
+        + createScenario(type: ScenarioType, graph: CityGraph): ModularIncident
+    }
+}
+
+package "gamification" {
+    interface SimulationEventListener <<Observer>>
+
+    class DistrictPreferenceWeights {
+        - punctualityWeight: double
+        - ecoFleetWeight: double
+        - overcrowdingWeight: double
+        - replacementSpeedWeight: double
+    }
+
+    class District {
+        - id: UUID
+        - name: String
+        - populationWeight: double
+        - satisfactionScore: double
+        + applyEventImpact(type: DispatchEventType, baseDelta: double): double
+    }
+
+    class CitizenFeedbackGenerator {
+        + generateComment(district: District, type: DispatchEventType, weightedDelta: double): CitizenComment
+    }
+
+    class DispatcherRatingService {
+        - overallScore: double
+        - experiencePoints: int
+        - currentRank: DispatcherRank
+        + calculateWeightedCitySatisfaction(districts: Collection<District>): double
+        + calculateHourlyCitySubsidy(): BigDecimal
+    }
+}
+
+package "assistant" {
+    interface DispatchCommand <<Command>> {
+        + execute(world: SimulationWorldState): void
+        + undo(world: SimulationWorldState): void
+        + getCommandDescription(): String
+        + getEstimatedCost(): BigDecimal
+    }
+
+    class RerouteLineCommand
+    class CreateTempLineCommand
+    class SwapFatiguedDriverCommand
+    class HoldVehicleForTactCommand
+
+    interface ResolutionStrategy <<Strategy>>
+    class DynamicRerouteStrategy
+    class TemporaryBusLineStrategy
+    class AntiBunchingStrategy
+    class DriverReliefStrategy
+
+    class DispatchRecommendation {
+        - id: UUID
+        - title: String
+        - aiJustification: String
+        - confidenceScore: double
+        - totalCost: BigDecimal
+        - status: RecommendationStatus
+        - commands: List<DispatchCommand>
+    }
+
+    class IntelligentAssistantService {
+        - strategies: List<ResolutionStrategy>
+        - executedHistory: Deque<DispatchRecommendation>
+    }
+}
+
+StopNode <|-- Depot
+StopNode *-- Coordinates
+TrackSegment --> "2" StopNode
+TrackSegment --> SegmentType
+CityGraph *-- "*" StopNode
+CityGraph *-- "*" TrackSegment
+Route --> RouteType
+Route o-- "2..*" StopNode
+Route o-- "*" TrackSegment
+Route ..> RoutePreviewDTO : tworzy
+RouteBuilder --> CityGraph : findShortestPath
+RouteBuilder ..> Route : buduje
+
+CityNetworkLoader --> StopNodeRepository
+CityNetworkLoader --> TrackSegmentRepository
+CityNetworkLoader --> RouteRepository
+CityNetworkLoader ..> CityGraph : tworzy
+StopNodeEntity --> DistrictEntity
+TrackSegmentEntity --> "2" StopNodeEntity
+
+EnergyConsumer <|.. Vehicle
+Vehicle <|-- Tram
+Vehicle <|-- ElectricBus
+Vehicle <|-- DieselBus
+Vehicle o-- VehicleState
+VehicleState <|.. InDepotReserveState
+VehicleState <|.. InTransitState
+VehicleState <|.. DelayedState
+VehicleState <|.. ChargingState
+VehicleState <|.. BrokenDownState
+Vehicle ..> TrackSegment : canTraverse
+VehicleFactory ..> Vehicle : tworzy
+VehicleFactory --> BudgetManager
+VehicleFactory --> Depot : parkVehicle
+
+Driver *-- ShiftTimeTracker
+Driver o-- DriverTrait
+Driver --> DriverState
+Driver --> "1..*" LicenseType
+DriverTrait <|.. EcoDriverTrait
+DriverTrait <|.. SpeedsterTrait
+DriverTrait <|.. CalmVeteranTrait
+DriverTrait <|.. StrictUnionistTrait
+DriverGenerator ..> Driver : tworzy
+
+SimulationWorldState *-- CityGraph
+SimulationWorldState *-- "*" Vehicle
+SimulationWorldState *-- "*" Driver
+SimulationWorldState *-- "*" Route
+SimulationWorldState *-- BudgetManager
+SimulationWorldState --> SimulationSpeed
+SimulationWorldState ..> SimulationWorldMemento : tworzy
+SimulationWorldState ..> CityNetworkLoader : ładuje sieć
+SimulationTickEngine --> SimulationWorldState
+SimulationTickEngine --> TelemetryBroadcaster
+SaveGameManager --> SimulationWorldState
+SaveGameManager ..> SimulationWorldMemento
+AnalyticsCollector --> SimulationWorldState
+
+IncidentEffect <|.. TrackBlockageEffect
+IncidentEffect <|.. PowerGridFailureEffect
+IncidentEffect <|.. CongestionSpikeEffect
+IncidentEffect <|.. PassengerSurgeEffect
+IncidentEffect <|.. VehicleBreakdownEffect
+ModularIncident *-- "1..*" IncidentEffect
+ModularIncident --> IncidentSeverity
+ScenarioGenerator ..> ModularIncident : tworzy
+IncidentEffect ..> CityGraph : modyfikuje
+
+District *-- DistrictPreferenceWeights
+SimulationEventListener <|.. DispatcherRatingService
+DispatcherRatingService o-- "*" District
+DispatcherRatingService --> CitizenFeedbackGenerator
+
+DispatchCommand <|.. RerouteLineCommand
+DispatchCommand <|.. CreateTempLineCommand
+DispatchCommand <|.. SwapFatiguedDriverCommand
+DispatchCommand <|.. HoldVehicleForTactCommand
+ResolutionStrategy <|.. DynamicRerouteStrategy
+ResolutionStrategy <|.. TemporaryBusLineStrategy
+ResolutionStrategy <|.. AntiBunchingStrategy
+ResolutionStrategy <|.. DriverReliefStrategy
+IntelligentAssistantService o-- "4" ResolutionStrategy
+ResolutionStrategy ..> DispatchRecommendation : tworzy
+DispatchRecommendation *-- "1..*" DispatchCommand
+CreateTempLineCommand ..> RouteBuilder
+DispatchCommand ..> SimulationWorldState
+IntelligentAssistantService --> DispatcherRatingService
+
+@enduml

@@ -1,0 +1,45 @@
+@startuml
+skinparam responseMessageBelowArrow true
+
+actor "Dyspozytor MPK" as Dyspozytor
+participant ":NetworkCreatorTab" as Tab
+participant ":NetworkController" as Controller
+participant ":BudgetManager" as Budget
+participant ":CityGraph" as Graph
+participant "stary:TrackSegment" as Old
+participant "nowy:StopNode" as Stop
+
+Dyspozytor -> Tab : kliknij odcinek, podaj nazwę i opcję ładowarki
+activate Tab
+Tab -> Controller : POST /api/network/stops
+activate Controller
+
+Controller -> Budget : canAfford(koszt)
+activate Budget
+Budget --> Controller : true
+deactivate Budget
+
+Controller -> Graph : buildCustomStopOnSegment(nazwa, coords, segmentId, pętla, ładowarka)
+activate Graph
+Graph -> Graph : findSegment(segmentId)
+Graph -> Graph : removeSegment(stary) oraz odcinek przeciwny
+create Stop
+Graph -> Stop : new StopNode(..., isCustomBuilt = true, 180 000 / 350 000 PLN)
+Graph -> Old : getLengthKm()
+Graph -> Graph : addSegment(from -> nowy), addSegment(nowy -> to)
+Graph -> Graph : addSegment(to -> nowy), addSegment(nowy -> from)
+Graph --> Controller : nowy
+deactivate Graph
+
+Controller -> Stop : getConstructionCost()
+Controller -> Budget : spend(koszt, "Budowa przystanku")
+activate Budget
+Budget --> Controller
+deactivate Budget
+
+Controller --> Tab : nowy przystanek
+deactivate Controller
+Tab --> Dyspozytor : marker przystanku na mapie
+deactivate Tab
+
+@enduml

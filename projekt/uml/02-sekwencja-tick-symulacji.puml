@@ -1,0 +1,42 @@
+@startuml
+skinparam responseMessageBelowArrow true
+
+participant ":SimulationTickEngine" as Engine
+participant ":SimulationWorldState" as World
+participant "pojazd:Vehicle" as Vehicle
+participant "stan:VehicleState" as State
+participant "kierowca:Driver" as Driver
+participant "tachograf:ShiftTimeTracker" as Tacho
+participant "odcinek:TrackSegment" as Segment
+participant "przystanek:StopNode" as Stop
+participant ":BudgetManager" as Budget
+participant ":TelemetryBroadcaster" as Broadcaster
+
+Engine -> World : advanceClockSeconds(10 * mnożnik)
+loop dla każdego pojazdu
+    Engine -> Vehicle : getCurrentState()
+    Engine -> State : canMoveInTick()
+    Engine -> Driver : canContinueDriving()
+    opt pojazd i kierowca mogą jechać
+        Engine -> Segment : getEffectiveSpeedKmh()
+        Engine -> Driver : getTrait().getSpeedMultiplier()
+        Engine -> Engine : progress += deltaKm / lengthKm
+        Engine -> Vehicle : consumeEnergyOrFuel(deltaKm, congestionFactor)
+        Engine -> Driver : updateWorkTick(minuty)
+        activate Driver
+        Driver -> Tacho : recordDriving(minuty)
+        Driver -> Tacho : isInOvertime() / isHardLimitExceeded()
+        Driver --> Engine : OVERTIME lub REFUSED_TO_WORK przy przekroczeniu
+        deactivate Driver
+        opt progress >= 1.0
+            Engine -> Vehicle : alightPassengers(fraction)
+            Engine -> Stop : boardPassengers(wolneMiejsca)
+            Stop --> Engine : wsiadający
+            Engine -> Budget : addRevenue(4.00 PLN * wsiadający, "Bilety")
+        end
+    end
+end
+Engine -> Broadcaster : broadcastTickState(world)
+Broadcaster -> Broadcaster : /topic/telemetry
+
+@enduml

@@ -1,0 +1,49 @@
+@startuml
+skinparam responseMessageBelowArrow true
+
+actor "Dyspozytor MPK" as Dyspozytor
+participant ":SaveLoadModal" as Modal
+participant ":SaveLoadController" as Controller
+participant ":SaveGameManager" as Manager
+participant ":SimulationWorldState" as World
+participant "migawka:SimulationWorldMemento" as Memento
+participant ":SaveSlotRepository" as Repository
+
+Dyspozytor -> Modal : Zapisz grę "Poranny szczyt"
+activate Modal
+Modal -> Controller : POST /api/saves
+activate Controller
+Controller -> Manager : saveCurrentGame("Poranny szczyt")
+activate Manager
+Manager -> World : createMemento("Poranny szczyt")
+activate World
+create Memento
+World -> Memento : zegar, budżet, ocena, przystanki, linie, pojazdy, kierowcy
+World --> Manager : migawka
+deactivate World
+Manager -> Manager : ObjectMapper.writeValueAsString(migawka)
+Manager -> Repository : save(SaveSlotEntity)
+Repository --> Manager : zapisany slot
+Manager --> Controller : SaveSlotDTO
+deactivate Manager
+Controller --> Modal : SaveSlotDTO
+deactivate Controller
+Modal --> Dyspozytor : slot na liście zapisów
+deactivate Modal
+
+Dyspozytor -> Modal : Wczytaj slot
+activate Modal
+Modal -> Controller : POST /api/saves/{id}/load
+activate Controller
+Controller -> Manager : loadGameFromSlot(id)
+activate Manager
+Manager -> Repository : findById(id)
+Manager -> Manager : ObjectMapper.readValue(...)
+Manager -> World : restoreFromMemento(migawka)
+Manager --> Controller
+deactivate Manager
+Controller --> Modal : stan odtworzony
+deactivate Controller
+deactivate Modal
+
+@enduml

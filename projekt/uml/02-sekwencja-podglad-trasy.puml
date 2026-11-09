@@ -1,0 +1,38 @@
+@startuml
+skinparam responseMessageBelowArrow true
+
+actor "Dyspozytor MPK" as Dyspozytor
+participant ":NetworkCreatorTab" as Tab
+participant ":NetworkController" as Controller
+participant "linia50:Route" as Route
+participant "odcinek:TrackSegment" as Segment
+
+Dyspozytor -> Tab : wybierz linię 50
+activate Tab
+Tab -> Controller : GET /api/network/routes/{id}/preview
+activate Controller
+Controller -> Route : generatePreviewDTO()
+activate Route
+
+loop dla każdego odcinka w pathSegments
+    Route -> Segment : getLengthKm()
+    Route -> Segment : getEstimatedTravelMinutes()
+    activate Segment
+    Segment -> Segment : getEffectiveSpeedKmh()
+    Segment --> Route : minuty z uwzględnieniem korków
+    deactivate Segment
+    Route -> Segment : getCurrentCongestionFactor()
+    opt współczynnik korków > 1.8
+        Route -> Route : dodaj przystanki do bottleneckStopNames
+    end
+end
+
+Route -> Route : buildPolyline()
+Route --> Controller : RoutePreviewDTO
+deactivate Route
+Controller --> Tab : JSON (km, minuty, polilinia, wąskie gardła)
+deactivate Controller
+Tab --> Dyspozytor : podświetlona trasa na mapie Leaflet
+deactivate Tab
+
+@enduml
